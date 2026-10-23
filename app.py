@@ -46,7 +46,7 @@ def same(u,h):
  try:
   target=(urllib.parse.urlsplit(u).hostname or '').lower().removeprefix('www.');base=h.lower().removeprefix('www.');return target==base or target.endswith('.'+base)
  except Exception:return False
-ART=re.compile(r'blog|insight|resource|article|news|story|journal|learn|press|update',re.I)
+ART=re.compile(r'blog|insight|resource|article|news|story|journal|learn|press|update',re.I); SKIP_PATH=re.compile(r'/(?:login|sign[-_]?in|signup|register|developers?|community|trust|about|contact|careers?|legal|privacy|terms|authors?|category|categories|tag|page|search|feed|wp-json|wp-admin)(?:/|$)',re.I); LISTING_PATH=re.compile(r'/(?:blog|resources?|insights?|news|newsroom|articles?|stories|press(?:-releases)?|learn|content|updates?)(?:/|$)',re.I); article_path=lambda p: bool(p and not SKIP_PATH.search(p) and not re.search(r'\.(?:xml|rss|jpe?g|png|gif|svg|pdf|css|js|zip)$',p) and not re.search(r'pricing|plans|price',p) and ((bool(LISTING_PATH.search(p)) and bool(p[LISTING_PATH.search(p).end():].strip('/')) and len(p[LISTING_PATH.search(p).end():].strip('/').split('/'))<=4) or (len([x for x in p.split('/') if x])>=2 and bool(re.search(r'20\d{2}|[-_]',p.rstrip('/').split('/')[-1])))))
 def xml_urls(xml):
  try:
   urls=[]
@@ -86,9 +86,9 @@ def discover(domain):
    else:
     for u in urls:
      path=urllib.parse.urlsplit(u).path.lower()
-     if same(u,host) and (ART.search(path) or re.search(r'pricing|plans|price',path)):cand.append(u)
+     if same(u,host) and (article_path(path) or re.search(r'pricing|plans|price',path)):cand.append(u)
   except Exception:pass
- listings=list(dict.fromkeys(u for u in cand if urllib.parse.urlsplit(u).hostname.lower().removeprefix('www.')!=(urllib.parse.urlsplit(home).hostname or '').lower().removeprefix('www.') or urllib.parse.urlsplit(u).path.strip('/').lower().split('/')[-1] in ('blog','resources','resource','insights','news','newsroom','articles','stories','press','press-releases','learn','content','updates','resource-center','company-news')))[:12]
+ listings=list(dict.fromkeys(u for u in cand if same(u,host) and LISTING_PATH.search(urllib.parse.urlsplit(u).path) and not article_path(urllib.parse.urlsplit(u).path)))[:12]
  for f in feeds[:4]:
   try:xml,_,_=fetch(f,8,800000);cand += [u for u in xml_urls(xml)[:40] if same(u,host)]
   except Exception:pass
@@ -97,20 +97,20 @@ def discover(domain):
   try:
    b,final,ct=fetch(u,10)
    if 'html' not in ct and not b.lstrip().startswith('<'):continue
-   pages[canon(final)]=parse(b,final);urls += [x['url'] for x in pages[canon(final)]['links'] if same(x['url'],host)]
+   pages[canon(final)]=parse(b,final);urls += [x['url'] for x in pages[canon(final)]['links'] if same(x['url'],host) and article_path(urllib.parse.urlsplit(x['url']).path)]
   except Exception as e:errors.append(f"Listing {urllib.parse.urlsplit(u).path}: {type(e).__name__}")
  urls+=cand;articles=[]
  for u in dict.fromkeys(urls):
   path=urllib.parse.urlsplit(u).path.lower()
-  if not same(u,host) or not path or path.rstrip('/') in ('/blog','/resources','/insights','/news','/articles','/stories','/press','/learn'):continue
-  if re.search(r'\.(xml|rss|jpg|jpeg|png|gif|svg|pdf|css|js|zip)$',path) or re.search(r'/(category|tag|author|page|search|feed|wp-json|wp-admin)(/|$)',path) or re.search(r'pricing|plans|price',path):continue
+  if not same(u,host) or not article_path(path):continue
+  
   try:
    b,final,ct=fetch(u,9,900000)
    if 'html' not in ct and not b.lstrip().startswith('<'):continue
    d=parse(b,final)
-   if len(d['title'])>=4:articles.append({'url':canon(final),'title':d['title'],'published':d['published'],'description':d['description']})
+   if len(d['title'])>=8 and (d['published'] or d['description'] or LISTING_PATH.search(path)):articles.append({'url':canon(final),'title':d['title'],'published':d['published'],'description':d['description']})
   except Exception:pass
-  if len(articles)>=65:break
+  if len(articles)>=30:break
  priceurls=[]
  for page in pages.values():priceurls += [x['url'] for x in page['links'] if same(x['url'],host) and re.search(r'pricing|plans|price',urllib.parse.urlsplit(x['url']).path.lower())]
  priceurls += [u for u in cand if re.search(r'pricing|plans|price',urllib.parse.urlsplit(u).path.lower())];price=None
