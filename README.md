@@ -19,8 +19,6 @@ DataForSEO search-volume enrichment uses the Google Ads search volume endpoint. 
 powershell
 $env:DATAFORSEO_LOGIN = "your-api-login"
 $env:DATAFORSEO_PASSWORD = "your-api-password"
-$env:DATAFORSEO_LOCATION = "2840" # United States location code
-$env:DATAFORSEO_LANGUAGE = "en"
 python app.py
 
 
