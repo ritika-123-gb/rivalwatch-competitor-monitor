@@ -24,7 +24,4 @@ $env:DATAFORSEO_LANGUAGE = "en"
 python app.py
 
 
-Without credentials, a target keyword is inferred from the title and volume is labeled unavailable. API errors (including invalid credentials) do not break the crawl and are stored per article.
-
-Paste an incoming Slack webhook in the UI or set `SLACK_WEBHOOK_URL` on the server. Slack receives a summary only when new articles or pricing changes are found. The UI webhook is sent with the scan and is not saved by the app.
 
